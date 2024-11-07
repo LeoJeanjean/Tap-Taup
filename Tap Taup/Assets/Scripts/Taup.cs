@@ -4,9 +4,13 @@ using System.Collections;
 
 public class Taup : MonoBehaviour
 {
+    [HideInInspector] public Transform usingSpawnPoint = null;
+
     private Vector3 groundPosition;
 
     private Coroutine moveToGroundCoroutine;
+
+    private Sequence currentSequence;
 
     public void Activate()
     {
@@ -16,31 +20,46 @@ public class Taup : MonoBehaviour
         transform.position = groundPosition;
         transform.LookAt(GameManager.Instance.player.transform);
         // Move down in the ground
-        transform.DOMove(targetPosition, 1f).SetEase(Ease.OutQuad);
+        transform.DOMove(targetPosition, 1f*GameManager.Instance.spawnRate).SetEase(Ease.OutQuad);
         moveToGroundCoroutine = StartCoroutine(MoveToGround());
     }
 
     public IEnumerator MoveToGround()
     {
         yield return new WaitForSeconds(GameManager.Instance.taupDuration);
-        DOTween.Sequence()
-            .Append(transform.DOMove(groundPosition, 1f).SetEase(Ease.InQuad))
+        currentSequence = DOTween.Sequence()
+            .Append(transform.DOMove(groundPosition, 1f*GameManager.Instance.spawnRate).SetEase(Ease.InQuad))
             .AppendCallback(() => Deactivate())
             .Play();
     }
 
-    public void Kill()
+    public void OnTriggerEnter(Collider other)
     {
-        StopCoroutine(moveToGroundCoroutine);
-        TaupSpawning.Instance.DeactivateTaup(gameObject);
-        GameManager.Instance.score += GameManager.Instance.combo > 0 ? GameManager.Instance.combo: 1;
-        GameManager.Instance.combo++;
+        if(other.CompareTag("Hammer"))
+        {
+            currentSequence.Kill();
+            GameManager.Instance.sfxAudioSource.PlayOneShot(GameManager.Instance.moleHits[Random.Range(0, GameManager.Instance.moleHits.Count)]);
+            StopCoroutine(moveToGroundCoroutine);
+            TaupSpawning.Instance.DeactivateTaup(gameObject);
+            GameManager.Instance.score += GameManager.Instance.combo*100;
+            GameManager.Instance.combo++;
+            GameManager.Instance.uiManager.UpdateGUI(ValueType.combo, GameManager.Instance.combo);
+            GameManager.Instance.uiManager.UpdateGUI(ValueType.score, GameManager.Instance.score);
+        }
     }
 
     public void Deactivate()
     {
-        GameManager.Instance.combo = 0;
-        // GameManager.Instance.playerHealth--;
-        TaupSpawning.Instance.DeactivateTaup(gameObject);
+        if(GameManager.gameStarted)
+        {
+            GameManager.Instance.sfxAudioSource.PlayOneShot(GameManager.Instance.heartLost);
+            GameManager.Instance.SetDifficultyBack();
+            GameManager.Instance.uiManager.UpdateGUI(ValueType.combo, 0);
+            GameManager.Instance.uiManager.UpdateGUI(ValueType.health, 1);
+            GameManager.Instance.combo = 1;
+            GameManager.Instance.playerHealth--;
+            Debug.Log("zzzz reduced player health; is now "+GameManager.Instance.playerHealth);
+            TaupSpawning.Instance.DeactivateTaup(gameObject);
+        }
     }
 }

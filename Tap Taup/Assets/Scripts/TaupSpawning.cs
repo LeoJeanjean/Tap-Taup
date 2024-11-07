@@ -10,7 +10,7 @@ public class TaupSpawning : MonoBehaviour
     [SerializeField] private Transform[] spawnPoints;
     public Dictionary<string, Vector3> spawnedTaupPositions;
 
-    private HashSet<Transform> occupiedSpawnPoints;
+    [HideInInspector] public HashSet<Transform> occupiedSpawnPoints;
 
     private void Awake()
     {
@@ -29,10 +29,14 @@ public class TaupSpawning : MonoBehaviour
     {
         StartCoroutine(SpawnTaup());
     }
+    public void StopSpawning()
+    {
+        StopCoroutine(SpawnTaup());
+    }
 
     private IEnumerator SpawnTaup()
     {
-        while (true)
+        while (GameManager.gameStarted)
         {
             Transform spawnPoint = GetAvailableSpawnPoint();
             if (spawnPoint != null)
@@ -44,8 +48,10 @@ public class TaupSpawning : MonoBehaviour
                     continue;
                 }
                 taup.transform.position = spawnPoint.position;
+                taup.GetComponent<Taup>().usingSpawnPoint = spawnPoint;
                 spawnedTaupPositions[taup.name] = taup.transform.position;
                 occupiedSpawnPoints.Add(spawnPoint);
+                Debug.Log("+++occupiedSpawnPoints added "+spawnPoint.name);
 
                 taup.SetActive(true);
                 taup.GetComponent<Taup>().Activate();
@@ -90,10 +96,11 @@ public class TaupSpawning : MonoBehaviour
         spawnedTaupPositions[taup.name] = Vector3.zero;
 
 
-        Transform occupiedPoint = spawnPoints[Random.Range(0, spawnPoints.Length)];
+        Transform occupiedPoint = taup.GetComponent<Taup>().usingSpawnPoint;
         if (occupiedSpawnPoints.Contains(occupiedPoint))
         {
             occupiedSpawnPoints.Remove(occupiedPoint);
+            Debug.Log("---occupiedSpawnPoints removed "+occupiedPoint.name);
         }
 
         taup.transform.position = Vector3.zero;
